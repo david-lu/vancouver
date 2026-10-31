@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793415017037,
+      "tag": "0000_married_sally_floyd",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793415347658,
+      "tag": "0001_glorious_caretaker",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793417093552,
+      "tag": "0002_peaceful_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793418118109,
+      "tag": "0003_lowly_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793419432246,
+      "tag": "0004_shallow_marvel_boy",
+      "breakpoints": true
+    }
+  ]
+}

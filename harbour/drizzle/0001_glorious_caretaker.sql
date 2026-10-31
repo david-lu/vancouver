@@ -1,0 +1,1 @@
+ALTER TABLE `properties` ADD `municipality` text DEFAULT 'Vancouver' NOT NULL;

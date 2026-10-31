@@ -1,0 +1,5 @@
+export type Property = { id:string;pid:string;address:string;street:string;neighbourhood:string;municipality:string;lat:number;lon:number;assessed:number|null;land:number|null;improvement:number|null;tax:number|null;year:number|null;built:number|null;zone:string;type:string;change:number|null;history:any[];features:Record<string,any>;parcel?:any;permits?:any[];comparables?:Property[];note?:string };
+export type Filters = {q:string;municipality:string;neighbourhood:string;min:string;max:string;type:string;sort:string;mode:string;park:string};
+export const emptyFilters:Filters={q:'',municipality:'',neighbourhood:'',min:'',max:'',type:'',sort:'recommended',mode:'research',park:''};
+export const money=(v:number|null|undefined,compact=false)=>v==null?'Not available':new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:compact&&v>=1e6?2:0,...(compact?{notation:'compact' as const}:{})}).format(v);
+export const number=(v:number)=>new Intl.NumberFormat('en-CA').format(v||0);

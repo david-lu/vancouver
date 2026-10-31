@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+const cfg=await new Promise((resolve,reject)=>{let text='';const tty=process.stdin.isTTY;const read=chunk=>{text+=chunk;if(/[\r\n]/.test(text)){process.stdin.off('data',read);if(tty)process.stdin.setRawMode(false);process.stdin.pause();try{resolve(JSON.parse(text.trim()));}catch{reject(Error('Invalid verification configuration'));}}};if(tty)process.stdin.setRawMode(true);process.stdin.setEncoding('utf8');process.stdin.on('data',read);process.stdin.resume();process.stderr.write('Ready for verification JSON on stdin (input is hidden).\n');});
+const token=fs.readFileSync('.dev.vars','utf8').match(/^INGEST_TOKEN=(.*)$/m)[1].trim().replace(/^['"]|['"]$/g,'');
+const headers={Authorization:'Bearer '+token,...(cfg.bypass?{'OAI-Sites-Authorization':'Bearer '+cfg.bypass}:{})};
+async function request(route,method='GET'){for(let i=0;i<5;i++){const r=await fetch(cfg.url+'/api/'+route,{headers,method,signal:AbortSignal.timeout(120000)});if(r.ok)return r;if(i===4)throw Error(route+' returned '+r.status);await new Promise(r=>setTimeout(r,2000));}}
+const counts=await (await request('import-status')).json();
+const expected=JSON.parse(fs.readFileSync('../data/municipal-validation.json','utf8')).database_counts;assert.ok(expected?.properties>1000000,'Finalize the municipal coverage before verifying');
+for(const [table,count]of Object.entries(expected))assert.equal(counts[table],count,table+' count');console.log('HOSTED_DATABASE_COUNTS_VERIFIED',JSON.stringify(counts));
+const coverage=await (await request('layers/coverage')).json();assert.equal(coverage.length,23);
+const found=await (await request('addresses?q=Kingsway&municipality=Burnaby')).json();assert.ok(found.length&&found.every(a=>a.municipality==='Burnaby'));
+const t=Date.now();const map=await (await request('properties?bbox=-123.18,49.23,-123.04,49.29&sample=map&sort=recommended&limit=300')).json();assert.ok(map.properties.length>40);console.log('HOSTED_MAP',map.properties.length,'markers',Date.now()-t,'ms');
+const prop=await (await request('properties/750097550000')).json();assert.equal(prop.history.length,21);
+const history=await (await request('archive?q=750097550000')).json();assert.ok(history.properties[0].archiveAvailable);assert.equal(history.properties[0].records.length,21);console.log('ORIGINAL_ARCHIVE_RETRIEVAL_VERIFIED',history.properties[0].records.length,'annual source records');
+const manifest=await (await request('raw-manifest')).json();assert.ok(manifest.files.length>=761);assert.equal(new Set(manifest.files.map(f=>f.key)).size,manifest.files.length);assert.ok(manifest.files.every(f=>!f.file.split('/').some(p=>p.startsWith('.'))&&!/\.(sqlite|db)(-wal|-shm)?$/.test(f.file)));
+const selected=process.argv.includes('--municipal-only')?manifest.files.filter(f=>/^(burnaby|northvan|surrey)-extra\//.test(f.file)):manifest.files;assert.ok(selected.length);
+let cursor=0,verified=0,bytes=0;await Promise.all(Array.from({length:10},async()=>{while(cursor<selected.length){const item=selected[cursor++];const r=await request('raw/'+item.key,'HEAD');assert.equal(Number(r.headers.get('content-length')),item.storedBytes,item.key+' size');assert.equal(r.headers.get('x-content-sha256'),item.sha256,item.key+' SHA metadata');const local=item.file.endsWith('.gz')?path.join('../data/raw',item.file):path.join('../data/upload-cache',item.key);const hash=createHash('md5');for await(const chunk of fs.createReadStream(local))hash.update(chunk);assert.equal(r.headers.get('etag')?.replaceAll('"',''),hash.digest('hex'),item.key+' independent R2 content hash');verified++;bytes+=item.originalBytes;if(verified%100===0)console.log('ARCHIVE_OBJECTS_VERIFIED',verified);}}));
+const sample=manifest.files.find(f=>f.file==='schools.json');const response=await request('raw/'+sample.key);assert.equal(createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex'),sample.sha256);
+console.log('HOSTED_VERIFICATION_PASSED',verified,'archive files',bytes,'original bytes');

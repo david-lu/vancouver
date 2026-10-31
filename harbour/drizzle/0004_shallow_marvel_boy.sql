@@ -1,0 +1,1 @@
+CREATE INDEX `property_map` ON `properties` (`lat`,`lon`,`assessed`,`id`,`municipality`,`type`,`neighbourhood`);
